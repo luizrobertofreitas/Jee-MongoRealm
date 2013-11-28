@@ -14,14 +14,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.xml.bind.DatatypeConverter;
 import org.apache.catalina.LifecycleException;
 
 import org.apache.catalina.realm.GenericPrincipal;
 import org.apache.catalina.realm.RealmBase;
+import org.apache.commons.codec.binary.Base64;
+
 
 /**
- * Should be changed to use setDigest() and digest() - but then we also need to store the passwords as hex
+ * Should be changed to use setDigest() and digest() - but then we also need to
+ * store the passwords as hex
  *
  * @author Franz
  */
@@ -107,7 +109,7 @@ public class MongoRealm extends RealmBase {
         try {
             userId = Integer.parseInt(username);
         } catch (NumberFormatException e) {
-            logger.log(Level.INFO, "username no int: " + username);
+            logger.info("username no int: " + username);
             return null;
         }
         DBObject where = QueryBuilder.start(authUserField).is(userId).get();
@@ -117,6 +119,7 @@ public class MongoRealm extends RealmBase {
         DBObject result = collection.findOne(where, field);
         if (result != null) {
             password = result.get(authPasswordField).toString();
+            logger.info("password from DB: " + password);
         }
         return password;
     }
@@ -151,7 +154,7 @@ public class MongoRealm extends RealmBase {
         try {
             String in = userId + clearPass;
             byte[] x = MessageDigest.getInstance("SHA").digest(in.getBytes());
-            String mydigest = DatatypeConverter.printBase64Binary(x); // ends in =
+            String mydigest = new String(new Base64(true).encode(x));
             return mydigest;
         } catch (NoSuchAlgorithmException ex) {
             logger.log(Level.WARNING, "cannot encrypt!", ex);
@@ -167,16 +170,18 @@ public class MongoRealm extends RealmBase {
         String mydigest = makePass(username, credentials);
         String dbPass = getPassword(username);
 
+        logger.info("mydigest: " + mydigest + "\ndbPass: " + dbPass);
+
         boolean authenticated = false;
         if (dbPass != null && mydigest != null) {
             authenticated = dbPass.equals(mydigest);
+            logger.info("isauthenticated " + authenticated);
         }
         if (authenticated) {
             genericPrincipal = new GenericPrincipal(username, credentials, getRole(username));
         }
 
         return genericPrincipal;
-
     }
 
     @Override

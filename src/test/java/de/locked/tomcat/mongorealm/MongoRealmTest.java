@@ -12,6 +12,7 @@ import java.util.UUID;
 import javax.xml.bind.DatatypeConverter;
 import org.apache.catalina.LifecycleException;
 import org.apache.catalina.realm.GenericPrincipal;
+import org.apache.commons.codec.binary.Base64;
 import org.junit.After;
 import org.junit.Test;
 import static org.junit.Assert.*;
@@ -125,7 +126,7 @@ public class MongoRealmTest {
     public String digest(int userId, String pass) throws NoSuchAlgorithmException {
         String in = userId + pass;
         byte[] digest = MessageDigest.getInstance("SHA").digest(in.getBytes());
-        String s = DatatypeConverter.printBase64Binary(digest); // ends in =
+        String s = new String(new Base64(true).encode(digest));
         return s;
     }
 }
