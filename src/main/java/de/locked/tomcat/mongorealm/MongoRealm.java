@@ -8,8 +8,6 @@ import com.mongodb.MongoClient;
 import com.mongodb.QueryBuilder;
 import de.locked.signalcoverage.share.v2.ApiUser;
 import java.net.UnknownHostException;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.List;
@@ -110,7 +108,7 @@ public class MongoRealm extends RealmBase {
             logger.log(Level.INFO, "username no int: " + username);
             return null;
         }
-        
+
         DBObject where = QueryBuilder.start(authUserField).is(userId).get();
         BasicDBObject field = new BasicDBObject(authPasswordField, true);
 
@@ -141,28 +139,35 @@ public class MongoRealm extends RealmBase {
         return roles;
     }
 
-    public String makePass(String userIdString, String clearPass) {
-        try {
-            int userId = Integer.parseInt(userIdString);
-            return new String(ApiUser.makePassBase64(userId, clearPass));
-        } catch (NumberFormatException ex) {
-            logger.log(Level.INFO, "username no int: " + userIdString);
-            return null;
-        }
+    private String makeApiPass(int userId, String clearPass) {
+        return new String(ApiUser.makePassBase64(userId, clearPass));
+    }
+
+    private String makeConverterPass(int userId, String clearPass) {
+        return DatatypeConverter.printBase64Binary(ApiUser.makePass(userId, clearPass));
     }
 
     @Override
     public Principal authenticate(String username, String credentials) {
         logger.info("authenticate " + username);
-        GenericPrincipal genericPrincipal = null;
+        int userId;
+        try {
+            userId = Integer.parseInt(username);
+        } catch (NumberFormatException ex) {
+            logger.log(Level.INFO, "username no int: " + username);
+            return null;
+        }
 
-        String mydigest = makePass(username, credentials);
         String dbPass = getPassword(username);
+        String apiPass = makeApiPass(userId, credentials); // ends in \r\n
+        String dtcPass = makeConverterPass(userId, credentials); // ends =
 
         boolean authenticated = false;
-        if (dbPass != null && mydigest != null) {
-            authenticated = dbPass.equals(mydigest);
+        if (dbPass != null) {
+            authenticated |= dbPass.equals(apiPass);
+            authenticated |= dbPass.equals(dtcPass);
         }
+        GenericPrincipal genericPrincipal = null;
         if (authenticated) {
             genericPrincipal = new GenericPrincipal(username, credentials, getRole(username));
         }
