@@ -3,16 +3,14 @@ package de.locked.tomcat.mongorealm;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBCollection;
 import com.mongodb.MongoClient;
+import de.locked.signalcoverage.share.v2.ApiUser;
 import java.net.UnknownHostException;
-import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.Principal;
 import java.util.List;
 import java.util.UUID;
-import javax.xml.bind.DatatypeConverter;
 import org.apache.catalina.LifecycleException;
 import org.apache.catalina.realm.GenericPrincipal;
-import org.apache.commons.codec.binary.Base64;
 import org.junit.After;
 import org.junit.Test;
 import static org.junit.Assert.*;
@@ -124,9 +122,6 @@ public class MongoRealmTest {
     }
 
     public String digest(int userId, String pass) throws NoSuchAlgorithmException {
-        String in = userId + pass;
-        byte[] digest = MessageDigest.getInstance("SHA").digest(in.getBytes());
-        String s = new String(new Base64(true).encode(digest));
-        return s;
+        return new String(ApiUser.makePassBase64(userId, pass));
     }
 }

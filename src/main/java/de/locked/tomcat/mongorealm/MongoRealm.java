@@ -6,6 +6,7 @@ import com.mongodb.DBCollection;
 import com.mongodb.DBObject;
 import com.mongodb.MongoClient;
 import com.mongodb.QueryBuilder;
+import de.locked.signalcoverage.share.v2.ApiUser;
 import java.net.UnknownHostException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -14,16 +15,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.xml.bind.DatatypeConverter;
 import org.apache.catalina.LifecycleException;
 
 import org.apache.catalina.realm.GenericPrincipal;
 import org.apache.catalina.realm.RealmBase;
-import org.apache.commons.codec.binary.Base64;
-
 
 /**
- * Should be changed to use setDigest() and digest() - but then we also need to
- * store the passwords as hex
+ * Should be changed to use setDigest() and digest() - but then we also need to store the passwords as hex
  *
  * @author Franz
  */
@@ -103,23 +102,23 @@ public class MongoRealm extends RealmBase {
     @Override
     protected String getPassword(final String username) {
         logger.info("getting password for " + username);
-        DBCollection collection = db.getCollection(authCollection);
 
-        int userId = -1;
+        int userId;
         try {
             userId = Integer.parseInt(username);
         } catch (NumberFormatException e) {
-            logger.info("username no int: " + username);
+            logger.log(Level.INFO, "username no int: " + username);
             return null;
         }
+        
         DBObject where = QueryBuilder.start(authUserField).is(userId).get();
         BasicDBObject field = new BasicDBObject(authPasswordField, true);
 
-        String password = null;
+        DBCollection collection = db.getCollection(authCollection);
         DBObject result = collection.findOne(where, field);
+        String password = null;
         if (result != null) {
             password = result.get(authPasswordField).toString();
-            logger.info("password from DB: " + password);
         }
         return password;
     }
@@ -143,21 +142,11 @@ public class MongoRealm extends RealmBase {
     }
 
     public String makePass(String userIdString, String clearPass) {
-        int userId;
         try {
-            userId = Integer.parseInt(userIdString);
+            int userId = Integer.parseInt(userIdString);
+            return new String(ApiUser.makePassBase64(userId, clearPass));
         } catch (NumberFormatException ex) {
             logger.log(Level.INFO, "username no int: " + userIdString);
-            return null;
-        }
-
-        try {
-            String in = userId + clearPass;
-            byte[] x = MessageDigest.getInstance("SHA").digest(in.getBytes());
-            String mydigest = new String(new Base64(true).encode(x));
-            return mydigest;
-        } catch (NoSuchAlgorithmException ex) {
-            logger.log(Level.WARNING, "cannot encrypt!", ex);
             return null;
         }
     }
@@ -170,28 +159,24 @@ public class MongoRealm extends RealmBase {
         String mydigest = makePass(username, credentials);
         String dbPass = getPassword(username);
 
-        logger.info("mydigest: " + mydigest + "\ndbPass: " + dbPass);
-
         boolean authenticated = false;
         if (dbPass != null && mydigest != null) {
             authenticated = dbPass.equals(mydigest);
-            logger.info("isauthenticated " + authenticated);
         }
         if (authenticated) {
             genericPrincipal = new GenericPrincipal(username, credentials, getRole(username));
         }
-
         return genericPrincipal;
     }
 
     @Override
     protected Principal getPrincipal(final String username) {
-        logger.info("getting principal for " + username);
         return (new GenericPrincipal(username,
                 getPassword(username),
                 getRole(username)));
     }
 
+    //<editor-fold defaultstate="collapsed" desc="getter/setter">
     // #################################################################################################################
     public String getDefaultDbHost() {
         return defaultDbHost;
@@ -264,5 +249,5 @@ public class MongoRealm extends RealmBase {
     public void setAuthRoleField(String authRoleField) {
         this.authRoleField = authRoleField;
     }
-
+//</editor-fold>
 }
