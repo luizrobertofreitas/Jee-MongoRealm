@@ -3,11 +3,11 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>de.locked.tomcat</groupId>
-    <artifactId>MongoRealm</artifactId>
+    <artifactId>GenericMongoRealm</artifactId>
     <version>1.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
-    <name>MongoRealm</name>
+    <name>GenericMongoRealm</name>
     <url>http://maven.apache.org</url>
 
     <properties>
@@ -36,13 +36,6 @@
             <artifactId>junit</artifactId>
             <version>4.11</version>
             <scope>test</scope>
-        </dependency>
-        
-        <dependency>
-            <groupId>de.locked.cellmapper-web</groupId>
-            <artifactId>signalcoverage-share</artifactId>
-            <version>2.0.0-SNAPSHOT</version>
-            <type>jar</type>
         </dependency>
     </dependencies>
     

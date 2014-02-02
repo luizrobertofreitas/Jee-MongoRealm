@@ -6,28 +6,22 @@ import com.mongodb.DBCollection;
 import com.mongodb.DBObject;
 import com.mongodb.MongoClient;
 import com.mongodb.QueryBuilder;
-import de.locked.signalcoverage.share.v2.ApiUser;
 import java.net.UnknownHostException;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.xml.bind.DatatypeConverter;
 import org.apache.catalina.LifecycleException;
 
 import org.apache.catalina.realm.GenericPrincipal;
 import org.apache.catalina.realm.RealmBase;
 
-/**
- * Should be changed to use setDigest() and digest() - but then we also need to store the passwords as hex
- *
- * @author Franz
- */
-public class MongoRealm extends RealmBase {
+public class GenericMongoRealm extends RealmBase {
 
-    private static final Logger logger = Logger.getLogger(MongoRealm.class.getName());
+    private static final Logger logger = Logger.getLogger(GenericMongoRealm.class.getName());
 
+    // environment variables to take db credentials from
     private static final String envHost = "OPENSHIFT_MONGODB_DB_HOST";
     private static final String envUser = "OPENSHIFT_MONGODB_DB_USERNAME";
     private static final String envPass = "OPENSHIFT_MONGODB_DB_PASSWORD";
@@ -57,19 +51,19 @@ public class MongoRealm extends RealmBase {
     }
 
     void initConnection() {
-        setDigest("SHA");
         try {
             logger.info("starting MongoRealm");
             String host = getEnvVar(envHost, defaultDbHost);
             String user = getEnvVar(envUser, defaultDbUser);
             String pass = getEnvVar(envPass, defaultDbPass);
-            logger.info("connect to host: " + host + " / user: " + user + " / pass set: " + (!pass.isEmpty()));
+            logger.log(Level.INFO, "connect to host: {0} / user: {1} / pass set: {2}",
+                    new Object[]{host, user, !pass.isEmpty()});
 
             mongoClient = new MongoClient(host);
             db = mongoClient.getDB(authDB);
             if (!user.isEmpty()) {
                 boolean authenticated = db.authenticate(user, pass.toCharArray());
-                logger.info("realm authentication succeded: " + authenticated);
+                logger.log(Level.INFO, "realm authentication succeded: {0}", authenticated);
             } else {
                 logger.info("realm authentication ommitted as no username is given");
             }
@@ -99,21 +93,12 @@ public class MongoRealm extends RealmBase {
 
     @Override
     protected String getPassword(final String username) {
-        logger.info("getting password for " + username);
-
-        int userId;
-        try {
-            userId = Integer.parseInt(username);
-        } catch (NumberFormatException e) {
-            logger.log(Level.INFO, "username no int: " + username);
-            return null;
-        }
-
-        DBObject where = QueryBuilder.start(authUserField).is(userId).get();
-        BasicDBObject field = new BasicDBObject(authPasswordField, true);
+        logger.log(Level.INFO, "getting password for {0}", username);
 
         DBCollection collection = db.getCollection(authCollection);
-        DBObject result = collection.findOne(where, field);
+        DBObject result = collection.findOne(
+                QueryBuilder.start(authUserField).is(username).get(),
+                new BasicDBObject(authPasswordField, true));
         String password = null;
         if (result != null) {
             password = result.get(authPasswordField).toString();
@@ -122,7 +107,7 @@ public class MongoRealm extends RealmBase {
     }
 
     List<String> getRole(String username) {
-        logger.info("getting role for " + username);
+        logger.log(Level.INFO, "getting role for {0}", username);
         List<String> roles = new ArrayList<>();
         if (authRoleField != null && !authRoleField.isEmpty()) {
             DBCollection collection = db.getCollection(authCollection);
@@ -137,41 +122,6 @@ public class MongoRealm extends RealmBase {
         }
 
         return roles;
-    }
-
-    private String makeApiPass(int userId, String clearPass) {
-        return new String(ApiUser.makePassBase64(userId, clearPass));
-    }
-
-    private String makeConverterPass(int userId, String clearPass) {
-        return DatatypeConverter.printBase64Binary(ApiUser.makePass(userId, clearPass));
-    }
-
-    @Override
-    public Principal authenticate(String username, String credentials) {
-        logger.info("authenticate " + username);
-        int userId;
-        try {
-            userId = Integer.parseInt(username);
-        } catch (NumberFormatException ex) {
-            logger.log(Level.INFO, "username no int: " + username);
-            return null;
-        }
-
-        String dbPass = getPassword(username);
-        String apiPass = makeApiPass(userId, credentials); // ends in \r\n
-        String dtcPass = makeConverterPass(userId, credentials); // ends =
-
-        boolean authenticated = false;
-        if (dbPass != null) {
-            authenticated |= dbPass.equals(apiPass);
-            authenticated |= dbPass.equals(dtcPass);
-        }
-        GenericPrincipal genericPrincipal = null;
-        if (authenticated) {
-            genericPrincipal = new GenericPrincipal(username, credentials, getRole(username));
-        }
-        return genericPrincipal;
     }
 
     @Override
@@ -254,5 +204,6 @@ public class MongoRealm extends RealmBase {
     public void setAuthRoleField(String authRoleField) {
         this.authRoleField = authRoleField;
     }
+
 //</editor-fold>
 }
