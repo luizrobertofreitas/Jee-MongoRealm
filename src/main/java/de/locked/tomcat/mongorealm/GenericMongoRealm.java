@@ -6,6 +6,7 @@ import com.mongodb.DBCollection;
 import com.mongodb.DBObject;
 import com.mongodb.MongoClient;
 import com.mongodb.QueryBuilder;
+import java.io.UnsupportedEncodingException;
 import java.net.UnknownHostException;
 import java.security.Principal;
 import java.util.ArrayList;
@@ -129,6 +130,43 @@ public class GenericMongoRealm extends RealmBase {
         return (new GenericPrincipal(username,
                 getPassword(username),
                 getRole(username)));
+    }
+
+    /**
+     * Digest the password using the specified algorithm and convert the result to a corresponding hexadecimal string.
+     * If exception, the plain credentials string is returned.
+     *
+     * @param credentials Password or other credentials to use in authenticating this username
+     */
+    @Override
+    protected String digest(String credentials) {
+
+        // If no MessageDigest instance is specified, return unchanged
+        if (hasMessageDigest() == false) {
+            return (credentials);
+        }
+
+        // Digest the user credentials and return as hexadecimal
+        synchronized (this) {
+            try {
+                md.reset();
+
+                byte[] bytes = null;
+                try {
+                    bytes = credentials.getBytes(getDigestCharset());
+                } catch (UnsupportedEncodingException uee) {
+                    logger.log(Level.SEVERE, "Illegal digestEncoding: " + getDigestEncoding(), uee);
+                    throw new IllegalArgumentException(uee.getMessage());
+                }
+                md.update(bytes);
+
+                return (HexUtils.toHexString(md.digest()));
+            } catch (Exception e) {
+                logger.log(Level.SEVERE, sm.getString("realmBase.digest"), e);
+                return (credentials);
+            }
+        }
+
     }
 
     //<editor-fold defaultstate="collapsed" desc="getter/setter">

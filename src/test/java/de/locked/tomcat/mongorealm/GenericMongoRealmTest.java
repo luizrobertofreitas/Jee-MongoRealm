@@ -16,7 +16,6 @@ import org.apache.catalina.LifecycleException;
 import org.apache.catalina.realm.GenericPrincipal;
 import org.apache.catalina.realm.RealmBase;
 import org.apache.juli.logging.LogFactory;
-import org.apache.tomcat.util.buf.HexUtils;
 import org.junit.After;
 import org.junit.Test;
 import static org.junit.Assert.*;
