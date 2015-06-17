@@ -95,8 +95,9 @@ public class GenericMongoRealm extends RealmBase {
     @Override
     protected String getPassword(final String username) {
         logger.log(Level.INFO, "getting password for {0}", username);
-
+        
         DBCollection collection = db.getCollection(authCollection);
+        
         DBObject result = collection.findOne(
                 QueryBuilder.start(authUserField).is(username).get(),
                 new BasicDBObject(authPasswordField, true));
@@ -104,6 +105,7 @@ public class GenericMongoRealm extends RealmBase {
         if (result != null) {
             password = result.get(authPasswordField).toString();
         }
+        
         return password;
     }
 
@@ -113,10 +115,10 @@ public class GenericMongoRealm extends RealmBase {
         if (authRoleField != null && !authRoleField.isEmpty()) {
             DBCollection collection = db.getCollection(authCollection);
 
-            DBObject where = QueryBuilder.start(authUserField).in(username).get();
-            DBObject field = QueryBuilder.start(authRoleField).get();
+            DBObject where = QueryBuilder.start(authUserField).is(username).get();
+//            DBObject field = QueryBuilder.start(authRoleField).get();
 
-            DBObject result = collection.findOne(where, field);
+            DBObject result = collection.findOne(where);
             roles.add(result.get(authRoleField).toString());
         } else {
             roles.add(defaultRole);
